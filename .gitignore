@@ -1,0 +1,73 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual Environment
+venv/
+env/
+ENV/
+
+# Model Files and Checkpoints
+*.pth
+*.pt
+*.h5
+*.pkl
+*.ckpt
+checkpoints/
+checkpoints_full/
+best_model*.pth
+checkpoint_*.pth
+
+# Dataset Files
+*.mat
+datasets/brainTumorDataPublic_*/
+datasets/archive/
+
+# Results and Logs
+results/
+logs/
+*.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Jupyter Notebook
+.ipynb_checkpoints/
+*.ipynb
+
+# Environment variables
+.env
+.env.local
+
+# Node modules (for frontend)
+node_modules/
+frontend/node_modules/
+frontend/dist/
+
+# Temporary files
+*.tmp
+*.temp
+.cache/

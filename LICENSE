@@ -1,0 +1,79 @@
+MIT License
+
+Copyright (c) 2024 [Your Name]
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+---
+
+ADDITIONAL TERMS FOR MODEL WEIGHTS:
+
+Pre-trained model weights (*.onnx, *.pth, *.trt files) are licensed under 
+Creative Commons Attribution-NonCommercial 4.0 International (CC BY-NC 4.0)
+to comply with BraTS dataset license requirements.
+
+You are free to:
+- Share: Copy and redistribute the model weights
+- Adapt: Remix, transform, and build upon the model weights
+
+Under the following terms:
+- Attribution: You must give appropriate credit
+- NonCommercial: You may not use the model weights for commercial purposes
+
+For commercial licensing of model weights, please contact: [your.email@example.com]
+
+---
+
+DATASET LICENSES:
+
+This project uses data from the following sources:
+
+1. BraTS 2020/2021 Dataset
+   - Source: https://www.med.upenn.edu/cbica/brats2020/
+   - License: Custom license (registration required)
+   - Usage: Research and education only
+
+2. Figshare Brain Tumor Dataset
+   - Source: https://figshare.com/articles/brain_tumor_dataset/1512427
+   - License: CC BY 4.0
+   - Citation: Cheng, Jun (2017): brain tumor dataset. figshare. Dataset.
+
+3. Kaggle Brain Tumor MRI Dataset
+   - Source: https://www.kaggle.com/datasets/masoudnickparvar/brain-tumor-mri-dataset
+   - License: Public Domain
+   - Citation: Nickparvar, Masoud (2021): Brain Tumor MRI Dataset. Kaggle.
+
+Please respect the licenses of these datasets when using this software.
+
+---
+
+DISCLAIMER:
+
+THIS SOFTWARE AND ASSOCIATED MODEL WEIGHTS ARE PROVIDED FOR RESEARCH AND 
+EDUCATIONAL PURPOSES ONLY. THEY HAVE NOT BEEN APPROVED BY THE FDA, CE MARK,
+OR ANY OTHER REGULATORY BODY FOR CLINICAL USE.
+
+DO NOT USE THIS SOFTWARE FOR MEDICAL DIAGNOSIS OR TREATMENT DECISIONS WITHOUT
+PROPER CLINICAL VALIDATION AND REGULATORY APPROVAL.
+
+THE AUTHORS AND COPYRIGHT HOLDERS DISCLAIM ALL LIABILITY FOR ANY DIRECT,
+INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES ARISING
+FROM THE USE OF THIS SOFTWARE IN ANY MEDICAL CONTEXT.
+
+ALWAYS CONSULT QUALIFIED MEDICAL PROFESSIONALS FOR HEALTH-RELATED DECISIONS.
