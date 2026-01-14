@@ -1,4 +1,4 @@
-from typing import Dict, Any
+from typing import Dict, Any, List
 import time
 from datetime import datetime
 from .base_agent import BaseAgent
@@ -51,9 +51,15 @@ class ReportGenerationAgent(BaseAgent):
         self, vision: Dict, knowledge: Dict, patient: Dict, qa: Dict
     ) -> Dict:
         """Generate structured comprehensive report"""
-        tumor_features = vision.get('tumor_features', {})
-        differential = knowledge.get('differential_diagnosis', [])
-        patient_profile = patient.get('patient_profile', {})
+        # Add defensive null checks
+        vision = vision or {}
+        knowledge = knowledge or {}
+        patient = patient or {}
+        qa = qa or {}
+        
+        tumor_features = vision.get('tumor_features', {}) or {}
+        differential = knowledge.get('differential_diagnosis', []) or []
+        patient_profile = patient.get('patient_profile', {}) or {}
         
         report = {
             'clinical_information': self._format_clinical_information(patient_profile),
@@ -67,9 +73,11 @@ class ReportGenerationAgent(BaseAgent):
     
     def _format_clinical_information(self, profile: Dict) -> str:
         """Format clinical information section"""
-        demographics = profile.get('demographics', {})
-        symptoms = profile.get('presenting_symptoms', [])
-        history = profile.get('family_history', {})
+        if not profile:
+            profile = {}
+        demographics = profile.get('demographics', {}) or {}
+        symptoms = profile.get('presenting_symptoms', []) or []
+        history = profile.get('family_history', {}) or {}
         
         clinical_info = f"""CLINICAL INFORMATION:
 
@@ -101,21 +109,29 @@ Multi-agent deep learning architecture with explainability features
     
     def _format_findings_section(self, tumor_features: Dict, vision: Dict) -> str:
         """Format findings section"""
-        size = tumor_features.get('size', {})
-        location = tumor_features.get('location', 'not specified')
+        size = tumor_features.get('size') if tumor_features else None
+        location = tumor_features.get('location', 'not specified') if tumor_features else 'not specified'
+        
+        # Build size information safely
+        if size and isinstance(size, dict):
+            size_str = f"{size.get('length_mm', 'N/A')} x {size.get('width_mm', 'N/A')} x {size.get('height_mm', 'N/A')} mm (L x W x H)"
+            volume_str = f"{size.get('volume_ml', size.get('estimated_volume_ml', 'N/A'))} mL"
+        else:
+            size_str = "N/A - no mass identified"
+            volume_str = "N/A - no mass identified"
         
         findings = f"""FINDINGS:
 
 Brain Parenchyma:
-There is a{' heterogeneous' if tumor_features.get('necrosis') else 'n'} mass identified in the {location}.
+There is a{' heterogeneous' if tumor_features and tumor_features.get('necrosis') else 'n'} mass identified in the {location}.
 
 Lesion Characteristics:
-- Size: Approximately {size.get('length_mm', 'N/A')} x {size.get('width_mm', 'N/A')} x {size.get('height_mm', 'N/A')} mm (L x W x H)
-- Volume: Estimated {size.get('volume_ml', 'N/A')} mL
-- Margins: {tumor_features.get('borders', 'not specified')}
-- Enhancement Pattern: {tumor_features.get('enhancement_pattern', 'not specified')}
-- Central Necrosis: {'Present' if tumor_features.get('necrosis') else 'Not identified'}
-- Perilesional Edema: {tumor_features.get('edema', 'minimal')}
+- Size: Approximately {size_str}
+- Volume: Estimated {volume_str}
+- Margins: {tumor_features.get('borders', 'not specified') if tumor_features else 'not specified'}
+- Enhancement Pattern: {tumor_features.get('enhancement_pattern', 'not specified') if tumor_features else 'not specified'}
+- Central Necrosis: {'Present' if tumor_features and tumor_features.get('necrosis') else 'Not identified'}
+- Perilesional Edema: {tumor_features.get('edema', 'minimal') if tumor_features else 'none'}
 
 Mass Effect:
 {tumor_features.get('mass_effect', 'No significant mass effect')}
@@ -134,11 +150,15 @@ Confidence Score: {vision.get('confidence_score', 0.85):.1%}
     
     def _format_impression_section(self, differential: List[Dict], qa: Dict) -> str:
         """Format impression section"""
-        if not differential:
+        if not differential or len(differential) == 0:
             return "IMPRESSION:\nInsufficient data for diagnostic impression."
         
-        primary_dx = differential[0]
-        confidence = qa.get('confidence_level', 'MEDIUM')
+        primary_dx = differential[0] if differential else {}
+        confidence = qa.get('confidence_level', 'MEDIUM') if qa else 'MEDIUM'
+        
+        # Handle missing primary diagnosis data
+        if not primary_dx:
+            return "IMPRESSION:\nPrimary diagnosis not available."
         
         impression = f"""IMPRESSION:
 
@@ -165,8 +185,12 @@ Confidence Score: {vision.get('confidence_score', 0.85):.1%}
     
     def _format_recommendations_section(self, knowledge: Dict, qa: Dict) -> str:
         """Format recommendations section"""
-        tests = knowledge.get('recommended_tests', [])
-        treatment = knowledge.get('treatment_guidelines', {})
+        if not knowledge:
+            knowledge = {}
+        if not qa:
+            qa = {}
+        tests = knowledge.get('recommended_tests', []) or []
+        treatment = knowledge.get('treatment_guidelines', {}) or {}
         
         recommendations = "RECOMMENDATIONS:\n\n"
         

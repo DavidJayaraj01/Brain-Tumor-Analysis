@@ -53,34 +53,53 @@ class AgentOrchestrator:
         logger.info("=" * 80)
         
         try:
-            # Phase 1: Parallel execution of independent agents
-            logger.info("\n[Phase 1] Executing Vision, Knowledge, and Patient agents in parallel...")
+            # Phase 1: Vision and Patient agents (independent)
+            logger.info("\n[Phase 1] Executing Vision and Patient agents in parallel...")
             
             vision_task = self.vision_agent.execute(case_data)
-            knowledge_task = self.knowledge_agent.execute(case_data)
             patient_task = self.patient_agent.execute(case_data)
             
-            vision_result, knowledge_result, patient_result = await asyncio.gather(
+            vision_result, patient_result = await asyncio.gather(
                 vision_task,
-                knowledge_task,
                 patient_task
             )
             
             logger.info(f"✓ Vision Agent completed: confidence {vision_result.get('confidence_score', 0):.2%}")
-            logger.info(f"✓ Knowledge Agent completed: {len(knowledge_result.get('differential_diagnosis', []))} differential diagnoses")
             logger.info(f"✓ Patient Agent completed: {len(patient_result.get('patient_profile', {}))} profile sections")
             
-            # Phase 2: Quality Assurance (depends on Phase 1 results)
-            logger.info("\n[Phase 2] Executing Quality Assurance validation...")
+            # Phase 2: Knowledge and Quality Assurance (depend on vision results)
+            logger.info("\n[Phase 2] Executing Knowledge and QA agents...")
             
-            qa_context = {
+            # Prepare context with vision results for knowledge agent
+            knowledge_context = {
                 **case_data,
                 'vision_analysis': vision_result,
-                'knowledge_analysis': knowledge_result,
+                'tumor_features': vision_result.get('tumor_features', {}),
+                'predictions': vision_result.get('predictions', {})
+            }
+            
+            knowledge_task = self.knowledge_agent.execute(knowledge_context)
+            
+            # QA context includes vision and patient (will add knowledge after)
+            qa_base_context = {
+                **case_data,
+                'vision_analysis': vision_result,
                 'patient_analysis': patient_result
             }
             
-            qa_result = await self.qa_agent.execute(qa_context)
+            knowledge_result, qa_partial_result = await asyncio.gather(
+                knowledge_task,
+                self.qa_agent.execute(qa_base_context)
+            )
+            
+            logger.info(f"✓ Knowledge Agent completed: {len(knowledge_result.get('differential_diagnosis', []))} differential diagnoses")
+            
+            # Re-run QA with complete context including knowledge
+            qa_complete_context = {
+                **qa_base_context,
+                'knowledge_analysis': knowledge_result
+            }
+            qa_result = await self.qa_agent.execute(qa_complete_context)
             
             logger.info(f"✓ QA Agent completed: {qa_result.get('validation_status')} (quality score: {qa_result.get('quality_score', 0):.2%})")
             logger.info(f"  Recommendation: {qa_result.get('recommendation', 'N/A')}")
@@ -89,7 +108,7 @@ class AgentOrchestrator:
             logger.info("\n[Phase 3] Generating comprehensive report...")
             
             report_context = {
-                **qa_context,
+                **qa_complete_context,
                 'qa_analysis': qa_result
             }
             

@@ -60,13 +60,9 @@ def parse_args():
     parser.add_argument('--cache_mat', action='store_true',
                        help='Cache .mat images in RAM (faster, uses ~4GB)')
     
-    # Checkpoint
+    # Output
     parser.add_argument('--checkpoint_dir', type=str, default='checkpoints_full',
-                       help='Directory to save checkpoints')
-    parser.add_argument('--resume', type=str, default=None,
-                       help='Resume from checkpoint')
-    parser.add_argument('--save_every', type=int, default=5,
-                       help='Save every N epochs')
+                       help='Directory to save final model')
     
     return parser.parse_args()
 
@@ -179,31 +175,31 @@ def validate(model, val_loader, criterion, device, epoch):
     return epoch_loss, epoch_acc
 
 
-def save_checkpoint(model, optimizer, epoch, train_loss, val_loss, val_acc,
-                   checkpoint_dir, is_best=False, filename=None):
-    """Save checkpoint"""
+def save_model_checkpoint(model, optimizer, history, best_val_acc, checkpoint_dir, epoch, is_final=False):
+    """Save model checkpoint as .pkl file"""
     os.makedirs(checkpoint_dir, exist_ok=True)
     
-    checkpoint = {
-        'epoch': epoch,
+    model_data = {
         'model_state_dict': model.state_dict(),
         'optimizer_state_dict': optimizer.state_dict(),
-        'train_loss': train_loss,
-        'val_loss': val_loss,
-        'val_acc': val_acc,
+        'training_history': history,
+        'best_val_acc': best_val_acc,
+        'epoch': epoch + 1,
+        'total_epochs_completed': len(history['train_loss']),
         'timestamp': datetime.now().isoformat()
     }
     
-    if filename is None:
-        filename = f'checkpoint_epoch_{epoch+1}.pth'
+    if is_final:
+        filename = 'final_model_50epochs.pkl'
+        print(f"\n💾 Saving final model (50 epochs complete)...")
+    else:
+        filename = f'checkpoint_epoch_{epoch+1}.pkl'
+        print(f"\n💾 Saving checkpoint at epoch {epoch+1}...")
     
     filepath = os.path.join(checkpoint_dir, filename)
-    torch.save(checkpoint, filepath)
-    
-    if is_best:
-        best_path = os.path.join(checkpoint_dir, 'best_model_full.pth')
-        torch.save(checkpoint, best_path)
-        print(f"  💾 Saved BEST model: {best_path}")
+    torch.save(model_data, filepath)
+    print(f"   ✅ Saved: {filepath}")
+    return filepath
 
 
 def main():
@@ -312,21 +308,21 @@ def main():
         print(f"  Val Loss:   {val_loss:.4f} | Val Acc:   {val_acc:.2f}%")
         print(f"  LR: {current_lr:.6f}")
         
-        # Save checkpoint
-        is_best = val_acc > best_val_acc
-        if is_best:
+        # Track best accuracy
+        if val_acc > best_val_acc:
             best_val_acc = val_acc
             print(f"  🎉 New best validation accuracy: {best_val_acc:.2f}%")
         
-        if (epoch + 1) % args.save_every == 0 or is_best:
-            save_checkpoint(
-                model, optimizer, epoch, train_loss, val_loss, val_acc,
-                args.checkpoint_dir, is_best=is_best
+        # Save checkpoint at epoch 25
+        if epoch + 1 == 25:
+            save_model_checkpoint(
+                model, optimizer, history, best_val_acc, 
+                args.checkpoint_dir, epoch, is_final=False
             )
         
         print()
     
-    # Training complete
+    # Training complete - Save final model
     print("=" * 80)
     print("✅ Training Complete!")
     print("=" * 80)
@@ -335,14 +331,22 @@ def main():
     print(f"   Archive images: {dataset_info['archive_train'] + dataset_info['archive_test']:,}")
     print(f"   .mat files: {dataset_info['mat_train'] + dataset_info['mat_test']:,}")
     print(f"\n🏆 Best Validation Accuracy: {best_val_acc:.2f}%")
-    print(f"\n💾 Best model saved to: {os.path.join(args.checkpoint_dir, 'best_model_full.pth')}")
     
-    # Save training history
+    # Save the final model as .pkl
+    final_model_path = save_model_checkpoint(
+        model, optimizer, history, best_val_acc, 
+        args.checkpoint_dir, args.epochs - 1, is_final=True
+    )
+    
+    # Save training history separately
     history_path = os.path.join(args.checkpoint_dir, 'training_history_full.json')
     with open(history_path, 'w') as f:
         json.dump(history, f, indent=2)
     print(f"📊 Training history saved to: {history_path}")
     
+    print(f"\n📦 Final model file: {final_model_path}")
+    print(f"   Format: .pkl (PyTorch pickle)")
+    print(f"   Contains: Model weights from all 50 epochs + training history")
     print("\n🎊 Congratulations! Your model is trained on the FULL dataset! 🧠")
 
 

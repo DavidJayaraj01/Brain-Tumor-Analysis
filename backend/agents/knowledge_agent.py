@@ -59,7 +59,24 @@ class MedicalKnowledgeAgent(BaseAgent):
         start_time = time.time()
         
         try:
+            # Get tumor features - could be direct or from vision analysis
             tumor_features = context.get('tumor_features', {})
+            if not tumor_features and 'vision_analysis' in context:
+                tumor_features = context['vision_analysis'].get('tumor_features', {})
+            
+            # Get predictions if available in context
+            predictions = context.get('predictions', {})
+            if not predictions and 'vision_analysis' in context:
+                predictions = context['vision_analysis'].get('predictions', {})
+            
+            # Merge predictions into tumor_features for differential diagnosis
+            if predictions and 'classification' in predictions:
+                tumor_features = {
+                    **tumor_features,
+                    'classification': predictions['classification'],
+                    'confidence': predictions.get('confidence', tumor_features.get('confidence', 0.5))
+                }
+            
             patient_context = context.get('patient_context', {})
             
             differential = await self._generate_differential_diagnosis(
@@ -73,7 +90,7 @@ class MedicalKnowledgeAgent(BaseAgent):
                 'literature_references': literature,
                 'recommended_tests': recommendations['tests'],
                 'treatment_guidelines': recommendations['treatment'],
-                'knowledge_confidence': 0.88
+                'knowledge_confidence': 0.88 if differential else 0.50
             }
             
             execution_time = time.time() - start_time
@@ -89,11 +106,32 @@ class MedicalKnowledgeAgent(BaseAgent):
         self, tumor_features: Dict, patient_context: Dict
     ) -> List[Dict]:
         """Generate differential diagnosis with reasoning"""
+        # Get probabilities from multiple possible sources
+        probabilities = {}
+        
+        # Try to get from tumor_features first
         probabilities = tumor_features.get('predicted_probabilities', {})
+        
+        # If not found, check if tumor_features has classification dict directly  
+        if not probabilities and 'classification' in tumor_features:
+            classification_data = tumor_features.get('classification', '')
+            confidence = tumor_features.get('confidence', 0.0)
+            if isinstance(classification_data, dict):
+                # classification is already a probability dict
+                probabilities = classification_data
+            elif isinstance(classification_data, str) and confidence:
+                # Build single probability from class + confidence
+                probabilities = {classification_data.lower(): confidence}
+        
         location = tumor_features.get('location', '')
         enhancement = tumor_features.get('enhancement_pattern', '')
         
         differential = []
+        
+        # If still no probabilities, return empty but log warning
+        if not probabilities:
+            self.logger.warning("No probability data available for differential diagnosis")
+            return []
         
         # Glioma analysis
         if 'glioma' in probabilities:
