@@ -5,6 +5,10 @@ import DetailedAnalysis from './components/DetailedAnalysis';
 import ChatInterface from './components/ChatInterface';
 import MedicalReport from './components/MedicalReport';
 import { predictImage, type PredictionResponse } from './services/api';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from './components/ui/Tabs';
+import { Alert, AlertDescription } from './components/ui/Alert';
+import { Card } from './components/ui/Card';
+import { Brain, AlertCircle, CheckCircle2 } from 'lucide-react';
 import './styles/app.css';
 
 function App() {
@@ -35,99 +39,134 @@ function App() {
   };
 
   return (
-    <div className="app">
-      <header className="app-header">
-        <h1>🧠 MediMind Brain Tumor Intelligence System</h1>
-        <p>Multi-Agent AI Platform for Comprehensive Tumor Analysis & Diagnosis</p>
+    <div className="min-h-screen bg-background text-foreground flex flex-col">
+      {/* Header */}
+      <header className="border-b border-border bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 shadow-lg">
+        <div className="container mx-auto px-4 py-8 md:py-12">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="p-2 bg-primary/20 rounded-lg">
+              <Brain className="h-8 w-8 text-primary" />
+            </div>
+            <h1 className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent">
+              MediMind BTIS
+            </h1>
+          </div>
+          <p className="text-muted-foreground text-lg">
+            Multi-Agent AI Platform for Comprehensive Tumor Analysis & Diagnosis
+          </p>
+        </div>
       </header>
 
-      <main className="app-main">
-        <div className="app-container">
-          <div className="upload-section">
-            <UploadPanel onUpload={handleUpload} isLoading={isLoading} />
-            
-            {error && (
-              <div className="error-message">
-                <strong>Error:</strong> {error}
-              </div>
-            )}
+      {/* Main Content */}
+      <main className="flex-1 container mx-auto px-4 py-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Upload Section */}
+          <div className="lg:col-span-1">
+            <div className="sticky top-8 space-y-4">
+              <UploadPanel onUpload={handleUpload} isLoading={isLoading} />
+              
+              {error && (
+                <Alert className="border-destructive/50 bg-destructive/10">
+                  <AlertCircle className="h-4 w-4 text-destructive" />
+                  <AlertDescription className="text-destructive">
+                    {error}
+                  </AlertDescription>
+                </Alert>
+              )}
 
-            {result?.analysis_metadata && (
-              <div className="analysis-metadata">
-                <h3>Analysis Info</h3>
-                <p><strong>Execution Time:</strong> {result.analysis_metadata.total_execution_time.toFixed(2)}s</p>
-                <p><strong>Agents Used:</strong> {result.analysis_metadata.agents_executed}</p>
-                <p><strong>Version:</strong> {result.analysis_metadata.system_version}</p>
-              </div>
-            )}
+              {result?.analysis_metadata && (
+                <Card className="bg-muted/50 border-primary/20">
+                  <div className="p-4 space-y-3">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle2 className="h-4 w-4 text-primary" />
+                      <h3 className="font-semibold text-sm">Analysis Complete</h3>
+                    </div>
+                    <div className="space-y-2 text-xs text-muted-foreground">
+                      <div className="flex justify-between">
+                        <span>Execution Time:</span>
+                        <span className="font-mono font-semibold text-foreground">
+                          {result.analysis_metadata.total_execution_time.toFixed(2)}s
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Agents Used:</span>
+                        <span className="font-mono font-semibold text-foreground">
+                          {result.analysis_metadata.agents_executed}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>System Version:</span>
+                        <span className="font-mono font-semibold text-foreground">
+                          {result.analysis_metadata.system_version}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </Card>
+              )}
+            </div>
           </div>
 
-          <div className="results-section">
+          {/* Results Section */}
+          <div className="lg:col-span-2">
             {result && (
-              <>
-                <div className="results-tabs">
-                  <button
-                    className={activeTab === 'overview' ? 'active' : ''}
-                    onClick={() => setActiveTab('overview')}
-                  >
-                    📊 Overview
-                  </button>
-                  <button
-                    className={activeTab === 'detailed' ? 'active' : ''}
-                    onClick={() => setActiveTab('detailed')}
-                  >
-                    🔬 Detailed Analysis
-                  </button>
-                  <button
-                    className={activeTab === 'report' ? 'active' : ''}
-                    onClick={() => setActiveTab('report')}
-                  >
-                    📋 Medical Report
-                  </button>
-                  <button
-                    className={activeTab === 'chat' ? 'active' : ''}
-                    onClick={() => setActiveTab('chat')}
-                  >
-                    💬 Ask AI
-                  </button>
-                </div>
+              <Tabs value={activeTab} onValueChange={(value: any) => setActiveTab(value)} className="w-full">
+                <TabsList className="grid w-full grid-cols-4">
+                  <TabsTrigger value="overview">Overview</TabsTrigger>
+                  <TabsTrigger value="detailed">Analysis</TabsTrigger>
+                  <TabsTrigger value="report">Report</TabsTrigger>
+                  <TabsTrigger value="chat">AI Chat</TabsTrigger>
+                </TabsList>
 
-                <div className="tab-content">
-                  {activeTab === 'overview' && <ResultPanel result={result} />}
-                  
-                  {activeTab === 'detailed' && result.multi_agent_analysis && (
+                <TabsContent value="overview" className="mt-6">
+                  <ResultPanel result={result} />
+                </TabsContent>
+                
+                <TabsContent value="detailed" className="mt-6">
+                  {result.multi_agent_analysis && (
                     <DetailedAnalysis analysis={result.multi_agent_analysis} />
                   )}
-                  
-                  {activeTab === 'report' && result.multi_agent_analysis?.medical_report && (
+                </TabsContent>
+
+                <TabsContent value="report" className="mt-6">
+                  {result.multi_agent_analysis?.medical_report && (
                     <MedicalReport report={result.multi_agent_analysis.medical_report} />
                   )}
-                  
-                  {activeTab === 'chat' && (
-                    <ChatInterface caseContext={JSON.stringify(result.multi_agent_analysis || {})} />
-                  )}
-                </div>
-              </>
+                </TabsContent>
+
+                <TabsContent value="chat" className="mt-6">
+                  <ChatInterface caseContext={JSON.stringify(result.multi_agent_analysis || {})} />
+                </TabsContent>
+              </Tabs>
             )}
 
             {!result && !isLoading && (
-              <div className="empty-state">
-                <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                  <polyline points="14 2 14 8 20 8" />
-                  <line x1="12" y1="18" x2="12" y2="12" />
-                  <line x1="9" y1="15" x2="15" y2="15" />
-                </svg>
-                <p>No results yet</p>
-                <span>Upload an MRI scan to get started with multi-agent AI analysis</span>
-              </div>
+              <Card className="flex flex-col items-center justify-center py-16 border-dashed border-2 border-muted">
+                <div className="text-center space-y-4">
+                  <div className="inline-flex items-center justify-center h-16 w-16 bg-muted rounded-lg">
+                    <Brain className="h-8 w-8 text-muted-foreground" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold">No Analysis Yet</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Upload an MRI scan to begin multi-agent AI analysis
+                    </p>
+                  </div>
+                </div>
+              </Card>
             )}
           </div>
         </div>
       </main>
 
-      <footer className="app-footer">
-        <p>Powered by 5-Agent AI System: Vision • Knowledge • Patient Context • QA • Reporting | For research purposes only</p>
+      {/* Footer */}
+      <footer className="border-t border-border bg-muted/30 py-6 mt-12">
+        <div className="container mx-auto px-4 text-center text-sm text-muted-foreground">
+          <p>
+            Powered by 5-Agent AI System: Vision • Knowledge • Patient Context • QA • Reporting | 
+            <span className="block mt-2">For research and educational purposes only</span>
+          </p>
+        </div>
       </footer>
     </div>
   );

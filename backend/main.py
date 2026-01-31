@@ -1,18 +1,48 @@
-from fastapi import FastAPI, File, UploadFile, HTTPException, Form
+from fastapi import FastAPI, File, UploadFile, HTTPException, Form, Depends, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from typing import Dict, Optional
+from pydantic import BaseModel
 import numpy as np
 from PIL import Image
 import io
 import base64
 import asyncio
 import logging
+import json
 
 from agents.orchestrator import AgentOrchestrator
+from llm.rag_system import rag_system, get_rag_response
+from security.auth import (
+    authenticate_user, 
+    create_access_token, 
+    create_refresh_token,
+    get_current_user,
+    require_auth,
+    require_permission,
+    audit_logger,
+    User,
+    decode_token,
+    blacklist_token
+)
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+
+# Pydantic models for requests
+class LoginRequest(BaseModel):
+    username: str
+    password: str
+
+
+class TokenResponse(BaseModel):
+    access_token: str
+    refresh_token: str
+    token_type: str = "bearer"
+    expires_in: int = 3600
+
 
 app = FastAPI(
     title="MediMind Brain Tumor Intelligence System",
@@ -126,6 +156,85 @@ def apply_colormap(heatmap: np.ndarray) -> np.ndarray:
     return colored
 
 
+# ==================== Authentication Endpoints ====================
+
+@app.post("/auth/login", response_model=TokenResponse)
+async def login(request: LoginRequest):
+    """
+    Authenticate user and return JWT tokens
+    """
+    user = authenticate_user(request.username, request.password)
+    
+    if not user:
+        audit_logger.log_access(None, "LOGIN_FAILED", "/auth/login", details={"username": request.username}, success=False)
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid username or password"
+        )
+    
+    access_token = create_access_token(user)
+    refresh_token = create_refresh_token(user)
+    
+    audit_logger.log_access(user, "LOGIN_SUCCESS", "/auth/login")
+    
+    return TokenResponse(
+        access_token=access_token,
+        refresh_token=refresh_token,
+        expires_in=3600
+    )
+
+
+@app.post("/auth/refresh")
+async def refresh_token(refresh_token: str = Form(...)):
+    """
+    Refresh access token using refresh token
+    """
+    try:
+        payload = decode_token(refresh_token)
+        
+        if payload.get("type") != "refresh":
+            raise HTTPException(status_code=401, detail="Invalid token type")
+        
+        # Get user and create new access token
+        from security.auth import get_user_by_id
+        user = get_user_by_id(payload["sub"])
+        
+        if not user:
+            raise HTTPException(status_code=401, detail="User not found")
+        
+        new_access_token = create_access_token(user)
+        
+        return {"access_token": new_access_token, "token_type": "bearer"}
+        
+    except Exception as e:
+        raise HTTPException(status_code=401, detail=str(e))
+
+
+@app.post("/auth/logout")
+async def logout(user: User = Depends(require_auth)):
+    """
+    Logout user and invalidate token
+    """
+    audit_logger.log_access(user, "LOGOUT", "/auth/logout")
+    return {"message": "Successfully logged out"}
+
+
+@app.get("/auth/me")
+async def get_current_user_info(user: User = Depends(require_auth)):
+    """
+    Get current authenticated user info
+    """
+    return {
+        "id": user.id,
+        "username": user.username,
+        "email": user.email,
+        "role": user.role,
+        "permissions": user.permissions
+    }
+
+
+# ==================== Public Endpoints ====================
+
 @app.get("/")
 async def root():
     return {
@@ -143,6 +252,8 @@ async def health_check():
         "version": "1.0.0"
     }
 
+
+# ==================== Protected Endpoints ====================
 
 @app.post("/predict")
 async def predict(
@@ -288,21 +399,41 @@ async def agent_health_check():
 @app.post("/chat")
 async def chat_with_ai(question: str = Form(...), case_context: str = Form(...)):
     """
-    Interactive Q&A with AI about a diagnosis
+    Interactive Q&A with AI about a diagnosis using RAG system
     """
     try:
-        # Simulate conversational response (can be enhanced with actual LLM)
+        # Parse case context
+        try:
+            context_data = json.loads(case_context) if case_context else {}
+        except json.JSONDecodeError:
+            context_data = {"raw_context": case_context}
+        
+        # Extract relevant context for RAG
+        rag_context = {
+            "diagnosis": context_data.get("summary", {}).get("primary_diagnosis", 
+                         context_data.get("tumor_features", {}).get("classification", "Unknown")),
+            "confidence": context_data.get("summary", {}).get("confidence_level", "Unknown"),
+            "tumor_type": context_data.get("tumor_features", {}).get("classification", ""),
+            "findings": str(context_data.get("tumor_features", {}))
+        }
+        
+        # Get RAG response
+        logger.info(f"Processing chat question: {question[:50]}...")
+        rag_response = await get_rag_response(question, rag_context)
+        
         response = {
             'question': question,
-            'answer': f"Based on the imaging findings and clinical context, {question.lower()} can be explained by the tumor's location and characteristics. The heterogeneous enhancement pattern and infiltrative borders are typical of high-grade gliomas. Would you like more details about any specific aspect?",
-            'confidence': 0.88,
-            'sources': [
-                'WHO Classification of CNS Tumors 2021',
-                'Imaging findings in current case'
-            ]
+            'answer': rag_response['answer'],
+            'confidence': rag_response['confidence'],
+            'sources': rag_response['sources'],
+            'retrieved_documents': rag_response.get('retrieved_documents', 0)
         }
+        
+        logger.info(f"Chat response generated with {len(rag_response['sources'])} sources")
         return JSONResponse(content=response)
+        
     except Exception as e:
+        logger.error(f"Chat error: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 
